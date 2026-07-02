@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.replit.bottom_nav_barzip__lomoya6945.twa",
+    "sha256_cert_fingerprints": ["37:7B:7D:E4:89:62:8B:2F:7F:DF:99:8B:28:4E:71:18:FD:05:41:75:F5:C5:E7:BD:AF:4D:39:F7:25:E6:67:C0"]
+  }
+}]
