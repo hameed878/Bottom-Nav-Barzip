@@ -37,10 +37,10 @@ function HomeMain({
   return (
     <div className="flex flex-col min-h-full" style={{ background: "#f4f5f7" }}>
       {/* Header */}
-      <div className="flex items-center justify-between bg-white px-4 py-2 shadow-sm">
+      <div className="flex items-center justify-between bg-white px-4 py-2">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 flex items-center justify-center">
-            <img src="/logo.png" alt="XRT.LLC" className="w-9 h-9 object-contain" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.35))" }} />
+            <img src="/logo.png" alt="XRT.LLC" className="w-9 h-9 object-contain" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.45))" }} />
           </div>
           <span className="text-xs font-semibold text-gray-700">XRT.LLC</span>
         </div>
