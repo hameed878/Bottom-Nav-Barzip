@@ -1,5 +1,5 @@
-// XRT Service Worker — v1.1.0
-const CACHE_NAME = 'xrt-v1';
+// XRT Service Worker — v1.2.0
+const CACHE_NAME = 'xrt-v2';
 const OFFLINE_URL = '/offline.html';
 
 // Assets to pre-cache on install (includes offline page so it's always available)
