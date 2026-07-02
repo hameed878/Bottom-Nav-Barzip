@@ -11,18 +11,46 @@ session_start();
 define('ADMIN_USER', getenv('ADMIN_USER') ?: 'admin');
 define('ADMIN_PASS', getenv('ADMIN_PASS') ?: 'Clear@Clear');
 
-// DB connection via environment variables
+// DB connection — reads DATABASE_URL first, falls back to individual PG* vars
 function getDB(): PDO {
     static $pdo = null;
     if ($pdo !== null) return $pdo;
 
-    $host = getenv('PGHOST') ?: 'localhost';
-    $port = getenv('PGPORT') ?: '5432';
-    $user = getenv('PGUSER') ?: 'postgres';
-    $pass = getenv('PGPASSWORD') ?: '';
-    $name = getenv('PGDATABASE') ?: 'postgres';
+    $dbUrl = getenv('DATABASE_URL');
+    if ($dbUrl) {
+        // Parse postgresql://user:pass@host:port/dbname?params
+        $p = parse_url($dbUrl);
+        if ($p === false || empty($p['host'])) {
+            throw new \RuntimeException('DATABASE_URL is malformed — cannot connect to database.');
+        }
+        $host = $p['host'];
+        $port = $p['port'] ?? 5432;
+        // rawurldecode preserves literal '+' in credentials (urldecode would corrupt it)
+        $user = isset($p['user']) ? rawurldecode($p['user']) : 'postgres';
+        $pass = isset($p['pass']) ? rawurldecode($p['pass']) : '';
+        $rawPath = isset($p['path']) ? ltrim($p['path'], '/') : '';
+        $name = $rawPath !== '' ? $rawPath : 'postgres';
+        // Allow sslmode override from query string; default to require for Neon
+        $allowed  = ['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'];
+        $sslmode  = 'require';
+        if (!empty($p['query'])) {
+            parse_str($p['query'], $qs);
+            if (!empty($qs['sslmode']) && in_array($qs['sslmode'], $allowed, true)) {
+                $sslmode = $qs['sslmode'];
+            }
+        }
+        $dsn = "pgsql:host=$host;port=$port;dbname=$name;sslmode=$sslmode";
+    } else {
+        $host = getenv('PGHOST') ?: 'localhost';
+        $port = getenv('PGPORT') ?: '5432';
+        $user = getenv('PGUSER') ?: 'postgres';
+        $pass = getenv('PGPASSWORD') ?: '';
+        $name = getenv('PGDATABASE') ?: 'postgres';
+        // Force require when host is not localhost — never allow TLS downgrade in remote envs
+        $sslmode = ($host === 'localhost' || $host === '127.0.0.1') ? 'prefer' : 'require';
+        $dsn = "pgsql:host=$host;port=$port;dbname=$name;sslmode=$sslmode";
+    }
 
-    $dsn = "pgsql:host=$host;port=$port;dbname=$name;sslmode=prefer";
     $pdo = new PDO($dsn, $user, $pass, [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
