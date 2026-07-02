@@ -1,0 +1,68 @@
+modules = ["nodejs-24", "postgresql-16"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Admin Panel"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash start.sh"
+waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Admin Panel"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PHP_BIN=/nix/store/pzqbfqraffbbh1nrxvwkhnd66bxsw0fh-php-with-extensions-8.3.23/bin/php && $PHP_BIN -S 0.0.0.0:8001 -t admin/"
+waitForPort = 8001
+
+[agent]
+stack = "BEST_EFFORT_FALLBACK"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+FOOTBALL_API_KEY = "7d6f52a688f992bf29f118e98f418e75"
+BASE_PATH = "/"
+NODE_ENV = "development"
+MAILEROO_FROM_EMAIL = "noreply@338b5fe5d007f093.maileroo.org"

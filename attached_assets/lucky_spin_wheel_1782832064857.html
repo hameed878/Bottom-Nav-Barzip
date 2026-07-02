@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lucky Spin Wheel</title>
+<style>
+  :root{
+    --red:#d4151c;
+    --red-dark:#a30f14;
+    --cream:#fff8ec;
+    --gold-1:#fff4c2;
+    --gold-2:#e8b923;
+    --gold-3:#a9750f;
+    --shadow:#7a0c10;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:radial-gradient(circle at 50% 35%, #ff3b30 0%, var(--red) 45%, var(--red-dark) 100%);
+    font-family:'Trebuchet MS', 'Segoe UI', sans-serif;
+    color:var(--cream);
+    overflow:hidden;
+    padding:24px;
+  }
+  h1{
+    margin:0 0 6px;
+    font-size:clamp(28px,5vw,42px);
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--gold-1);
+    text-shadow:0 2px 0 var(--gold-3), 0 4px 10px rgba(0,0,0,.4);
+    text-align:center;
+  }
+  .sub{
+    margin:0 0 22px;
+    font-size:14px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:rgba(255,248,236,.75);
+  }
+  .wheel-wrap{
+    position:relative;
+    width:min(78vw,420px);
+    aspect-ratio:1/1;
+    filter:drop-shadow(0 18px 30px rgba(0,0,0,.45));
+  }
+  .pointer{
+    position:absolute;
+    top:-6px;
+    left:50%;
+    transform:translateX(-50%);
+    width:46px;
+    height:54px;
+    z-index:5;
+    filter:drop-shadow(0 4px 6px rgba(0,0,0,.5));
+  }
+  canvas{
+    width:100%;
+    height:100%;
+    display:block;
+    border-radius:50%;
+    transition:transform 5.2s cubic-bezier(.12,.85,.16,1);
+  }
+  .hub{
+    position:absolute;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    width:21%;
+    height:21%;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #fff6cf 0%, var(--gold-2) 45%, var(--gold-3) 100%);
+    box-shadow:0 0 0 4px rgba(0,0,0,.15) inset, 0 6px 10px rgba(0,0,0,.4);
+    z-index:4;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .hub::after{
+    content:"";
+    width:42%;
+    height:42%;
+    border-radius:50%;
+    background:radial-gradient(circle, var(--red) 0%, var(--red-dark) 100%);
+    box-shadow:inset 0 2px 4px rgba(0,0,0,.5);
+  }
+  button#spinBtn{
+    margin-top:30px;
+    padding:14px 46px;
+    font-size:18px;
+    font-weight:bold;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--red-dark);
+    background:linear-gradient(180deg, var(--gold-1), var(--gold-2) 60%, var(--gold-3));
+    border:none;
+    border-radius:40px;
+    cursor:pointer;
+    box-shadow:0 6px 0 var(--gold-3), 0 10px 18px rgba(0,0,0,.4);
+    transition:transform .08s ease, box-shadow .08s ease;
+  }
+  button#spinBtn:active{
+    transform:translateY(4px);
+    box-shadow:0 2px 0 var(--gold-3), 0 4px 10px rgba(0,0,0,.4);
+  }
+  button#spinBtn:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+  }
+  #result{
+    margin-top:18px;
+    min-height:32px;
+    font-size:22px;
+    font-weight:bold;
+    letter-spacing:1px;
+    color:var(--gold-1);
+    text-shadow:0 2px 6px rgba(0,0,0,.5);
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+
+<h1>Lucky Spin</h1>
+<p class="sub">Tap the button & try your luck</p>
+
+<div class="wheel-wrap">
+  <svg class="pointer" viewBox="0 0 46 54" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="ptGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#fff6cf"/>
+        <stop offset="55%" stop-color="#e8b923"/>
+        <stop offset="100%" stop-color="#a9750f"/>
+      </linearGradient>
+    </defs>
+    <path d="M23 54 C10 38 4 26 4 16 A19 19 0 0 1 42 16 C42 26 36 38 23 54 Z" fill="url(#ptGrad)" stroke="#7a4e08" stroke-width="1.5"/>
+    <circle cx="23" cy="17" r="7" fill="var(--red)" stroke="#7a4e08" stroke-width="1"/>
+  </svg>
+  <canvas id="wheel" width="600" height="600"></canvas>
+  <div class="hub"></div>
+</div>
+
+<button id="spinBtn">Spin</button>
+<div id="result"></div>
+
+<script>
+const segments = [
+  { label: "ZERO", value: 0,   color: "cream" },
+  { label: "$2",   value: 2,   color: "red"   },
+  { label: "$50",  value: 50,  color: "cream" },
+  { label: "$1",   value: 1,   color: "red"   },
+  { label: "$5",   value: 5,   color: "cream" },
+  { label: "$20",  value: 20,  color: "red"   },
+  { label: "JACKPOT", value: 500, color: "cream" },
+  { label: "$15",  value: 15,  color: "red"   },
+  { label: "$100", value: 100, color: "cream" },
+  { label: "$1",   value: 1,   color: "red"   },
+  { label: "$5",   value: 5,   color: "cream" },
+  { label: "$10",  value: 10,  color: "red"   }
+];
+
+const canvas = document.getElementById('wheel');
+const ctx = canvas.getContext('2d');
+const size = canvas.width;
+const cx = size/2, cy = size/2;
+const radius = size/2 - 8;
+const n = segments.length;
+const arc = (Math.PI*2)/n;
+
+function drawWheel(){
+  ctx.clearRect(0,0,size,size);
+
+  // outer rim
+  const rimGrad = ctx.createLinearGradient(0,0,size,size);
+  rimGrad.addColorStop(0,'#fff6cf');
+  rimGrad.addColorStop(0.5,'#e8b923');
+  rimGrad.addColorStop(1,'#a9750f');
+  ctx.beginPath();
+  ctx.arc(cx,cy,radius,0,Math.PI*2);
+  ctx.fillStyle = rimGrad;
+  ctx.fill();
+
+  // ridged texture ring
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx,cy,radius,0,Math.PI*2);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+  ctx.lineWidth = 1;
+  for(let a=0;a<360;a+=2){
+    const r1 = radius-2, r2 = radius;
+    const rad = a*Math.PI/180;
+    ctx.beginPath();
+    ctx.moveTo(cx+r1*Math.cos(rad), cy+r1*Math.sin(rad));
+    ctx.lineTo(cx+r2*Math.cos(rad), cy+r2*Math.sin(rad));
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  const innerR = radius - 26;
+
+  // segments
+  for(let i=0;i<n;i++){
+    const start = i*arc - Math.PI/2;
+    const end = start + arc;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,innerR,start,end);
+    ctx.closePath();
+    ctx.fillStyle = segments[i].color === 'red' ? '#d4151c' : '#fffaf0';
+    ctx.fill();
+  }
+
+  // thin gold dividers
+  ctx.strokeStyle = '#d8a93a';
+  ctx.lineWidth = 1.5;
+  for(let i=0;i<n;i++){
+    const a = i*arc - Math.PI/2;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+innerR*Math.cos(a), cy+innerR*Math.sin(a));
+    ctx.stroke();
+  }
+
+  // inner ring boundary
+  ctx.beginPath();
+  ctx.arc(cx,cy,innerR,0,Math.PI*2);
+  ctx.strokeStyle = '#c89a2a';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // labels
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for(let i=0;i<n;i++){
+    const mid = i*arc + arc/2 - Math.PI/2;
+    const seg = segments[i];
+    const textColor = seg.color === 'red' ? '#fff2c9' : '#c8121a';
+    ctx.save();
+    ctx.translate(cx + (innerR*0.62)*Math.cos(mid), cy + (innerR*0.62)*Math.sin(mid));
+    ctx.rotate(mid + Math.PI/2);
+    ctx.fillStyle = textColor;
+    ctx.font = seg.label === 'JACKPOT' || seg.label === 'ZERO' ? 'bold 19px Trebuchet MS' : 'bold 24px Trebuchet MS';
+    ctx.fillText(seg.label, 0, 0);
+    ctx.restore();
+  }
+
+  // outer rim stroke
+  ctx.beginPath();
+  ctx.arc(cx,cy,radius,0,Math.PI*2);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#fff6cf';
+  ctx.stroke();
+}
+
+drawWheel();
+
+let currentRotation = 0;
+let spinning = false;
+const btn = document.getElementById('spinBtn');
+const resultEl = document.getElementById('result');
+
+btn.addEventListener('click', () => {
+  if(spinning) return;
+  spinning = true;
+  resultEl.textContent = '';
+  btn.disabled = true;
+
+  const winnerIndex = Math.floor(Math.random()*n);
+  // pointer is at top (angle = -90deg / 270deg). segment i center angle (no rotation) = i*arc + arc/2 - 90deg
+  // we want winner's center to land at top after rotation.
+  const segCenterDeg = (winnerIndex*arc + arc/2) * (180/Math.PI); // relative to 0deg = start (top), measured clockwise from top
+  const randomOffset = (Math.random()-0.5) * (arc*0.6) * (180/Math.PI);
+  const extraSpins = 6 + Math.floor(Math.random()*3); // 6-8 full turns
+  const targetDeg = extraSpins*360 + (360 - segCenterDeg) - randomOffset;
+
+  currentRotation += targetDeg;
+  canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+  setTimeout(() => {
+    spinning = false;
+    btn.disabled = false;
+    const seg = segments[winnerIndex];
+    resultEl.textContent = seg.label === 'ZERO'
+      ? "Zero — better luck next spin!"
+      : seg.label === 'JACKPOT'
+        ? "🎉 JACKPOT! You won $500!"
+        : `You won ${seg.label}!`;
+  }, 5300);
+});
+</script>
+</body>
+</html>

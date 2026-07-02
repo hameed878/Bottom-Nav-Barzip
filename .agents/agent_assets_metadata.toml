@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "zFw40hUftfujwY8tpJGx8"
+uri = "file://email-templates/email-templates.zip"
+type = "unspecified"
+title = "XRT.LLC Email Templates — No Logo (All 3)"

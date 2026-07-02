@@ -1,0 +1,1 @@
+- [Port availability](port-availability.md) — Replit occupies port 3000 internally; use 6000+ for additional services like PHP admin
