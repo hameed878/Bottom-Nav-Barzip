@@ -10,18 +10,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $did = (int)($_POST['deposit_id'] ?? 0);
 
+    // Reset any aborted transaction left by a previous failed request
+    if ($db->inTransaction()) { try { $db->rollBack(); } catch(Exception $_) {} }
+
     if ($action === 'approve' && $did > 0) {
         $st = $db->prepare("SELECT * FROM deposits WHERE id=?");
         $st->execute([$did]);
         $dep = $st->fetch();
         if ($dep && $dep['status'] === 'pending') {
+            // Credit the right column: wallet recharges go to wallet_balance, main go to balance_pkr
+            $depType = $dep['deposit_type'] ?? 'main';
+            $balCol  = ($depType === 'wallet') ? 'wallet_balance' : 'balance_pkr';
             $db->beginTransaction();
             try {
                 $db->prepare("UPDATE deposits SET status='completed' WHERE id=?")->execute([$did]);
-                $db->prepare("UPDATE users SET balance_pkr = balance_pkr + ? WHERE id=?")->execute([$dep['amount_pkr'], $dep['user_id']]);
+                $db->prepare("UPDATE users SET $balCol = $balCol + ? WHERE id=?")->execute([(float)$dep['amount_pkr'], $dep['user_id']]);
                 $db->commit();
-                $msg = "Deposit #$did approved. ₨" . number_format($dep['amount_pkr'], 2) . " credited to user.";
-            } catch(Exception $e) { $db->rollBack(); $err = "Failed: " . $e->getMessage(); }
+                $label = ($depType === 'wallet') ? 'wallet balance' : 'main balance';
+                $msg = "Deposit #$did approved. ₨" . number_format($dep['amount_pkr'], 2) . " credited to user's $label.";
+            } catch(Exception $e) {
+                if ($db->inTransaction()) { try { $db->rollBack(); } catch(Exception $_) {} }
+                $err = "Failed: " . $e->getMessage();
+            }
+        } else {
+            $err = "Deposit #$did not found or already processed.";
         }
     } elseif ($action === 'reject' && $did > 0) {
         $db->prepare("UPDATE deposits SET status='rejected' WHERE id=?")->execute([$did]);
@@ -32,14 +44,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'manual_add') {
         $uid   = (int)($_POST['user_id'] ?? 0);
         $amt   = (float)($_POST['amount'] ?? 0);
+        $mtype = $_POST['deposit_type_manual'] ?? 'main';
+        $balCol = ($mtype === 'wallet') ? 'wallet_balance' : 'balance_pkr';
         if ($uid > 0 && $amt > 0) {
             $db->beginTransaction();
             try {
-                $db->prepare("INSERT INTO deposits (user_id, amount_pkr, status) VALUES (?,?,'completed')")->execute([$uid,$amt]);
-                $db->prepare("UPDATE users SET balance_pkr = balance_pkr + ? WHERE id=?")->execute([$amt,$uid]);
+                $db->prepare("INSERT INTO deposits (user_id, amount_pkr, status, deposit_type) VALUES (?,?,'completed',?)")->execute([$uid, $amt, $mtype]);
+                $db->prepare("UPDATE users SET $balCol = $balCol + ? WHERE id=?")->execute([$amt, $uid]);
                 $db->commit();
-                $msg = "Manual deposit of ₨" . number_format($amt,2) . " added for user #$uid.";
-            } catch(Exception $e) { $db->rollBack(); $err = $e->getMessage(); }
+                $label = ($mtype === 'wallet') ? 'wallet balance' : 'main balance';
+                $msg = "Manual deposit of ₨" . number_format($amt,2) . " added for user #$uid ($label).";
+            } catch(Exception $e) {
+                if ($db->inTransaction()) { try { $db->rollBack(); } catch(Exception $_) {} }
+                $err = $e->getMessage();
+            }
         }
     }
 }
@@ -85,18 +103,25 @@ include 'layout_header.php';
 <div class="card" style="margin-bottom:22px">
   <div class="card-header"><div class="card-title"><i class="bi bi-plus-circle-fill"></i> Add Manual Deposit</div></div>
   <div class="card-body">
-    <form method="post" style="display:flex;gap:12px;align-items:flex-end">
+    <form method="post" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
       <input type="hidden" name="action" value="manual_add">
-      <div class="form-group" style="flex:1;margin:0">
+      <div class="form-group" style="flex:2;min-width:160px;margin:0">
         <label>Member</label>
         <select name="user_id" required>
           <option value="">— Select member —</option>
           <?php foreach($users as $u): ?><option value="<?=$u['id']?>">#<?=$u['id']?> <?= htmlspecialchars($u['username']) ?></option><?php endforeach; ?>
         </select>
       </div>
-      <div class="form-group" style="flex:1;margin:0">
+      <div class="form-group" style="flex:1;min-width:120px;margin:0">
         <label>Amount (PKR)</label>
         <input type="number" name="amount" min="1" step="0.01" placeholder="0.00" required>
+      </div>
+      <div class="form-group" style="flex:1;min-width:130px;margin:0">
+        <label>Credit To</label>
+        <select name="deposit_type_manual">
+          <option value="main">Main Balance</option>
+          <option value="wallet">Wallet Balance</option>
+        </select>
       </div>
       <button type="submit" class="btn btn-primary">Add Deposit</button>
     </form>
@@ -120,13 +145,21 @@ include 'layout_header.php';
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>#</th><th>User</th><th>Amount (PKR)</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+      <thead><tr><th>#</th><th>User</th><th>Amount (PKR)</th><th>Type</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
       <tbody>
       <?php foreach($deps as $d): ?>
+      <?php $depType = $d['deposit_type'] ?? 'main'; ?>
       <tr>
         <td><code><?=$d['id']?></code></td>
         <td><strong><?= htmlspecialchars($d['username']) ?></strong></td>
         <td><strong>₨<?= number_format($d['amount_pkr'],2) ?></strong></td>
+        <td>
+          <?php if($depType === 'wallet'): ?>
+            <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b">🪙 Wallet</span>
+          <?php else: ?>
+            <span class="badge" style="background:#eff6ff;color:#1e40af;border:1px solid #3b82f6">💰 Main</span>
+          <?php endif; ?>
+        </td>
         <td>
           <?php $cls=['pending'=>'badge-pending','completed'=>'badge-success','rejected'=>'badge-danger'][$d['status']]??'badge-inactive'; ?>
           <span class="badge <?=$cls?>"><?= ucfirst($d['status']) ?></span>
@@ -136,7 +169,8 @@ include 'layout_header.php';
           <?php if($d['status']==='pending'): ?>
           <form method="post" style="display:inline">
             <input type="hidden" name="deposit_id" value="<?=$d['id']?>">
-            <button name="action" value="approve" class="btn btn-success btn-sm" data-confirm="Approve this deposit and credit the user?" data-confirm-type="success"><i class="bi bi-check-lg"></i> Approve</button>
+            <?php $approveLabel = ($depType === 'wallet') ? 'Approve → Wallet' : 'Approve → Main'; ?>
+            <button name="action" value="approve" class="btn btn-success btn-sm" data-confirm="Approve and credit user's <?= $depType === 'wallet' ? 'wallet balance' : 'main balance' ?>?" data-confirm-type="success"><i class="bi bi-check-lg"></i> <?= $approveLabel ?></button>
             <button name="action" value="reject"  class="btn btn-danger btn-sm"  data-confirm="Reject this deposit?" data-confirm-type="danger"><i class="bi bi-x-lg"></i> Reject</button>
           </form>
           <?php endif; ?>

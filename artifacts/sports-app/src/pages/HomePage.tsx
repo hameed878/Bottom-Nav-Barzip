@@ -7,12 +7,13 @@ import LiveMatchCard from "@/components/LiveMatchCard";
 import { useFixtures, todayStr } from "@/hooks/useFixtures";
 import type { Fixture } from "@/hooks/useFixtures";
 import RechargeOnlinePage from "@/pages/RechargeOnlinePage";
+import WalletRechargePage from "@/pages/WalletRechargePage";
 import WithdrawPage from "@/pages/WithdrawPage";
 import AddUsdtPage from "@/pages/AddUsdtPage";
 import WalletPage from "@/pages/WalletPage";
 import LuckyWheelPage from "@/pages/LuckyWheelPage";
 
-type SubPage = "home" | "recharge" | "withdraw" | "add-usdt-withdraw" | "wallet" | "lucky-wheel";
+type SubPage = "home" | "recharge" | "wallet-recharge" | "withdraw" | "add-usdt-withdraw" | "wallet" | "lucky-wheel";
 
 interface Props {
   onMatchClick: (fixture: Fixture) => void;
@@ -106,8 +107,9 @@ export default function HomePage({ onMatchClick }: Props) {
       />
     );
   }
+  if (subPage === "wallet-recharge") return <WalletRechargePage onBack={() => setSubPage("wallet")} />;
   if (subPage === "wallet") {
-    return <WalletPage onBack={goHome} onRecharge={() => setSubPage("recharge")} />;
+    return <WalletPage onBack={goHome} onRecharge={() => setSubPage("wallet-recharge")} />;
   }
   if (subPage === "lucky-wheel") {
     return <LuckyWheelPage onBack={goHome} />;

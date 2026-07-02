@@ -96,6 +96,11 @@ function getDB(): PDO {
     if ($tableCheck) {
         $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_frozen BOOLEAN NOT NULL DEFAULT FALSE");
     }
+    // Add deposit_type column to distinguish main-balance vs wallet recharges
+    $depCheck = $pdo->query("SELECT to_regclass('public.deposits')")->fetchColumn();
+    if ($depCheck) {
+        $pdo->exec("ALTER TABLE deposits ADD COLUMN IF NOT EXISTS deposit_type TEXT NOT NULL DEFAULT 'main'");
+    }
 
     return $pdo;
 }

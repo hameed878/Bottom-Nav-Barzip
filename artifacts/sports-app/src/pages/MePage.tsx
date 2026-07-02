@@ -10,11 +10,12 @@ import AddUsdtPage from "@/pages/AddUsdtPage";
 import WithdrawPage from "@/pages/WithdrawPage";
 import WithdrawHistoryPage from "@/pages/WithdrawHistoryPage";
 import RechargeOnlinePage from "@/pages/RechargeOnlinePage";
+import WalletRechargePage from "@/pages/WalletRechargePage";
 import RechargeHistoryPage from "@/pages/RechargeHistoryPage";
 import InvitationCenterPage from "@/pages/InvitationCenterPage";
 import OnlineServicePage from "@/pages/OnlineServicePage";
 
-type SubPage = "me" | "security-center" | "usdt-address" | "add-usdt" | "withdraw" | "add-usdt-from-withdraw" | "withdraw-history" | "recharge" | "recharge-history" | "qr-code" | "online-service";
+type SubPage = "me" | "security-center" | "usdt-address" | "add-usdt" | "withdraw" | "add-usdt-from-withdraw" | "withdraw-history" | "recharge" | "wallet-recharge" | "recharge-history" | "qr-code" | "online-service";
 
 const menuItems = [
   {
@@ -251,6 +252,10 @@ export default function MePage() {
 
   if (subPage === "recharge") {
     return <RechargeOnlinePage onBack={() => setSubPage("me")} />;
+  }
+
+  if (subPage === "wallet-recharge") {
+    return <WalletRechargePage onBack={() => setSubPage("me")} />;
   }
 
   if (subPage === "recharge-history") {

@@ -7,6 +7,8 @@ export const depositsTable = pgTable("deposits", {
   userId: integer("user_id").notNull(),
   amountPkr: numeric("amount_pkr", { precision: 18, scale: 2 }).notNull(),
   status: text("status").notNull().default("completed"),
+  // "main" = credit balance_pkr, "wallet" = credit wallet_balance
+  depositType: text("deposit_type").notNull().default("main"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

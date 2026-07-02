@@ -31,11 +31,14 @@ router.post("/deposits", async (req: Request, res) => {
     return res.status(401).json({ ok: false, error: "Not authenticated" });
   }
 
-  const { amount } = req.body as { amount: string };
+  const { amount, type } = req.body as { amount: string; type?: string };
   const amountNum = parseFloat(amount);
   if (!amountNum || amountNum <= 0) {
     return res.status(400).json({ ok: false, error: "Invalid amount" });
   }
+
+  // "main" credits balance_pkr, "wallet" credits wallet_balance
+  const depositType = type === "wallet" ? "wallet" : "main";
 
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId)).limit(1);
@@ -46,6 +49,7 @@ router.post("/deposits", async (req: Request, res) => {
       userId: user.id,
       amountPkr: String(amountNum),
       status: "pending",
+      depositType,
     }).returning();
 
     return res.json({
@@ -56,6 +60,7 @@ router.post("/deposits", async (req: Request, res) => {
         id: user.id,
         username: user.username,
         balancePkr: user.balancePkr,
+        walletBalance: user.walletBalance,
         totalTrade: user.totalTrade,
         frozenTrade: user.frozenTrade,
         vipLevel: user.vipLevel,
